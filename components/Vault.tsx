@@ -622,7 +622,7 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                                                 type="file" 
                                                 ref={fileInputRef} 
                                                 className="hidden" 
-                                                accept=".mypass,.xml,.csv,text/csv,application/csv,text/xml,application/xml" 
+                                                accept="*/*" 
                                                 onChange={(e) => {
                                                     setIsMenuOpen(false);
                                                     handleFileChange(e);
