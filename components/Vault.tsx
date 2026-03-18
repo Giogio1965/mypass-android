@@ -9,7 +9,7 @@ import {
     Wallet, Gamepad2, Tv, Plane, Car, Home, Star, Heart, 
     Music, Book, Code, Coffee, Dumbbell, GraduationCap, 
     Gift, Key, Map, Phone, Wifi, Zap, Globe, RotateCcw, Plus,
-    ArrowUpDown // Nuova icona aggiunta per l'ordinamento
+    ArrowUpDown, Menu
 } from 'lucide-react';
 
 interface VaultProps {
@@ -51,9 +51,12 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [isManageMode, setIsManageMode] = useState(false);
+    
+    // Stato per il Menu ad hamburger
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Nuovo stato per l'ordinamento
     const [sortMode, setSortMode] = useState<'newest' | 'oldest' | 'az'>('newest');
 
     const [dialogConfig, setDialogConfig] = useState<{
@@ -376,13 +379,11 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
         reader.onload = async (event) => {
             const text = event.target?.result as string;
 
-            // 1. GESTIONE DEL NUOVO BACKUP CRIPTATO (.mypass)
             if (file.name.endsWith('.mypass') || (text.includes('"vault":') && text.includes('"security":'))) {
                 try {
                     const backupData = JSON.parse(text);
                     
                     if (backupData.vault && backupData.security?.salt) {
-                        // Sovrascrive il database locale con i dati criptati del backup
                         localStorage.setItem('cassaforte_data', JSON.stringify(backupData.vault));
                         localStorage.setItem('cassaforte_master_salt', backupData.security.salt);
                         
@@ -393,7 +394,7 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                             type: 'success',
                             onConfirm: () => {
                                 closeDialog();
-                                window.location.reload(); // Forza il riavvio dell'app per ricaricare la decriptazione
+                                window.location.reload(); 
                             }
                         });
                     } else {
@@ -409,7 +410,6 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                     });
                 }
             } 
-            // 2. VECCHIA GESTIONE CSV E XML
             else {
                 let entries: PasswordEntry[] = [];
                 let type = '';
@@ -450,6 +450,7 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
 
         reader.readAsText(file);
     };
+
     const getCategoryIcon = (cat: string) => {
         if (categoryIconMap[cat] && ICON_MAP[categoryIconMap[cat]]) {
              const CustomIcon = ICON_MAP[categoryIconMap[cat]];
@@ -485,9 +486,7 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
         }, {} as Record<string, number>);
     }, [passwords]);
 
-    // La nuova logica di filtraggio unita all'ordinamento
     const filteredAndSortedPasswords = useMemo(() => {
-        // 1. Filtra
         const filtered = passwords.filter(p => {
             const matchesSearch = 
                 p.site.toLowerCase().includes(search.toLowerCase()) || 
@@ -498,14 +497,12 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
             return false; 
         });
 
-        // 2. Ordina
         return filtered.sort((a, b) => {
             if (sortMode === 'az') {
                 return a.site.toLowerCase().localeCompare(b.site.toLowerCase());
             } else if (sortMode === 'oldest') {
                 return a.updatedAt - b.updatedAt;
             } else {
-                // newest
                 return b.updatedAt - a.updatedAt;
             }
         });
@@ -602,38 +599,67 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                         </div>
                         
                         {!selectedCategory && !search && (
-                            <div className="flex items-center bg-white rounded-xl border border-slate-300 shadow-sm p-1 ml-1">
-                                <div className="relative">
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRef} 
-                                        className="hidden" 
-                                        accept=".mypass,.xml,.csv,text/csv,application/csv,text/xml,application/xml" 
-                                        onChange={handleFileChange} 
-                                    />
-                                    <button 
-                                        onClick={handleImportClick}
-                                        disabled={isImporting}
-                                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                        title="Importa CSV o XML"
-                                    >
-                                        {isImporting ? (
-                                            <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                                        ) : (
-                                            <FileDown size={22} />
-                                        )}
-                                    </button>
-                                </div>
-
-                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
-
+                            <div className="relative ml-2">
                                 <button 
-                                    onClick={handleExportClick}
-                                    className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                    title="Esporta Backup CSV"
+                                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                    className="p-3 bg-white text-slate-500 hover:text-blue-600 rounded-xl border border-slate-300 shadow-sm transition-colors focus:outline-none"
+                                    title="Menu Opzioni"
                                 >
-                                    <FileUp size={22} />
+                                    <Menu size={22} />
                                 </button>
+
+                                {isMenuOpen && (
+                                    <>
+                                        {/* Overlay invisibile per chiudere il menu cliccando fuori */}
+                                        <div 
+                                            className="fixed inset-0 z-40" 
+                                            onClick={() => setIsMenuOpen(false)}
+                                        ></div>
+                                        
+                                        {/* Menu a tendina */}
+                                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-[fadeIn_0.2s_ease-out]">
+                                            <input 
+                                                type="file" 
+                                                ref={fileInputRef} 
+                                                className="hidden" 
+                                                accept=".mypass,.xml,.csv,text/csv,application/csv,text/xml,application/xml" 
+                                                onChange={(e) => {
+                                                    setIsMenuOpen(false);
+                                                    handleFileChange(e);
+                                                }} 
+                                            />
+                                            
+                                            <button 
+                                                onClick={() => {
+                                                    setIsMenuOpen(false);
+                                                    handleImportClick();
+                                                }}
+                                                disabled={isImporting}
+                                                className="w-full flex items-center px-4 py-3 text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors text-left"
+                                            >
+                                                {isImporting ? (
+                                                    <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full mr-3"></div>
+                                                ) : (
+                                                    <FileDown size={20} className="mr-3 text-slate-400" />
+                                                )}
+                                                <span className="font-medium text-sm">Importa Dati</span>
+                                            </button>
+                                            
+                                            <div className="w-full h-px bg-slate-100 my-1"></div>
+                                            
+                                            <button 
+                                                onClick={() => {
+                                                    setIsMenuOpen(false);
+                                                    handleExportClick();
+                                                }}
+                                                className="w-full flex items-center px-4 py-3 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left"
+                                            >
+                                                <FileUp size={20} className="mr-3 text-emerald-500" />
+                                                <span className="font-medium text-sm">Esporta Backup</span>
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -670,7 +696,6 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                                     </div>
                                 </div>
                                 
-                                {/* Pulsante Ordinamento nella vista Cartella */}
                                 {(categoryCounts[selectedCategory] || 0) > 1 && (
                                     <button onClick={toggleSortMode} className="flex items-center text-xs text-slate-500 hover:text-blue-600 bg-white px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors active:scale-95">
                                         <ArrowUpDown size={14} className="mr-1" />

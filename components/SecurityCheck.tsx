@@ -1,8 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { PasswordEntry } from '../types';
 import { getPasswords } from '../services/storage';
-import { analyzeVaultSecurity } from '../services/geminiService';
-import { ArrowLeft, ShieldCheck, ShieldAlert, AlertTriangle, Repeat, RefreshCw, CheckCircle2, ChevronRight, Sparkles, Bot } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, ShieldAlert, Repeat, RefreshCw, CheckCircle2, ChevronRight } from 'lucide-react';
 
 interface SecurityCheckProps {
     onClose: () => void;
@@ -15,10 +14,6 @@ export const SecurityCheck: React.FC<SecurityCheckProps> = ({ onClose, onEdit })
     const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
     const [selectedRisk, setSelectedRisk] = useState<RiskType>(null);
     const [isLoading, setIsLoading] = useState(true);
-    
-    // Stati per l'Intelligenza Artificiale
-    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-    const [aiReport, setAiReport] = useState<string | null>(null);
 
     useEffect(() => {
         const load = async () => {
@@ -135,7 +130,6 @@ export const SecurityCheck: React.FC<SecurityCheckProps> = ({ onClose, onEdit })
     };
 
     const getRiskTitle = () => {
-        if (aiReport) return 'Report AI';
         switch(selectedRisk) {
             case 'REUSED': return 'Password Riutilizzate';
             case 'WEAK': return 'Password Deboli';
@@ -145,24 +139,10 @@ export const SecurityCheck: React.FC<SecurityCheckProps> = ({ onClose, onEdit })
     };
 
     const handleBack = () => {
-        if (aiReport) {
-            setAiReport(null); // Chiude il report AI
-        } else if (selectedRisk) {
-            setSelectedRisk(null); // Chiude la lista dettagliata
+        if (selectedRisk) {
+            setSelectedRisk(null); 
         } else {
-            onClose(); // Torna alla vault
-        }
-    };
-
-    const handleGenerateAIReport = async () => {
-        setIsGeneratingReport(true);
-        try {
-            const report = await analyzeVaultSecurity(stats);
-            setAiReport(report);
-        } catch (error) {
-            setAiReport("Si è verificato un errore di connessione con i server di Gemini.");
-        } finally {
-            setIsGeneratingReport(false);
+            onClose(); 
         }
     };
 
@@ -185,23 +165,7 @@ export const SecurityCheck: React.FC<SecurityCheckProps> = ({ onClose, onEdit })
 
             <div className="flex-1 overflow-y-auto p-6 pb-24">
                 
-                {aiReport ? (
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 animate-[fadeIn_0.3s_ease-out]">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                            <div className="bg-indigo-100 p-3 rounded-full text-indigo-600">
-                                <Bot size={24} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-slate-800">Analisi Completata</h3>
-                                <p className="text-xs text-slate-500">Generato da Gemini 2.5</p>
-                            </div>
-                        </div>
-                        {/* Renderizza il testo mantenendo gli a capo nativi */}
-                        <div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
-                            {aiReport}
-                        </div>
-                    </div>
-                ) : selectedRisk ? (
+                {selectedRisk ? (
                     <div className="space-y-3 animate-[fadeIn_0.2s_ease-out]">
                         <p className="text-sm text-slate-500 mb-4">
                             Clicca su una voce per modificarla e risolvere il problema.
@@ -244,33 +208,6 @@ export const SecurityCheck: React.FC<SecurityCheckProps> = ({ onClose, onEdit })
                                         ? "Ottimo lavoro! Le tue password sono solide come una roccia." 
                                         : "Ci sono margini di miglioramento. Controlla i problemi qui sotto."}
                                 </p>
-                            </div>
-
-                            <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-3xl p-6 shadow-md text-white mb-6 relative overflow-hidden">
-                                <Sparkles className="absolute top-4 right-4 text-white/10 w-24 h-24 transform rotate-12" />
-                                <div className="relative z-10">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Sparkles size={20} className="text-violet-200" />
-                                        <h3 className="font-bold text-lg">AI Security Coach</h3>
-                                    </div>
-                                    <p className="text-sm text-indigo-100 mb-4 line-clamp-2">
-                                        Fai analizzare le statistiche della tua cassaforte da Gemini per ottenere un piano di sicurezza su misura.
-                                    </p>
-                                    <button 
-                                        onClick={handleGenerateAIReport}
-                                        disabled={isGeneratingReport}
-                                        className="w-full bg-white text-indigo-700 px-4 py-3 rounded-xl font-bold text-sm hover:bg-indigo-50 transition-colors flex items-center justify-center shadow-lg shadow-indigo-900/20 active:scale-95 disabled:opacity-70 disabled:active:scale-100"
-                                    >
-                                        {isGeneratingReport ? (
-                                            <>
-                                                <RefreshCw size={18} className="animate-spin mr-2 text-indigo-500" />
-                                                Analisi in corso...
-                                            </>
-                                        ) : (
-                                            'Genera Report AI'
-                                        )}
-                                    </button>
-                                </div>
                             </div>
 
                             <div className="space-y-3">
