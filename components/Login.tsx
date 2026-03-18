@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { hasMasterPassword, setMasterPassword, verifyMasterPassword } from '../services/storage';
 import { Button } from './Button';
-import { KeyRound, Download, Eye, EyeOff, AlertTriangle, FileUp, UploadCloud } from 'lucide-react';
+import { KeyRound, Download, Eye, EyeOff, AlertTriangle, UploadCloud } from 'lucide-react';
 
 interface LoginProps {
     onLogin: () => void;
@@ -86,20 +86,28 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         reader.onload = async (event) => {
             const text = event.target?.result as string;
 
+            // Controllo basato sul contenuto del file per massima compatibilità mobile
             if (text.includes('"vault"') && text.includes('"security"')) {
                 try {
                     const backupData = JSON.parse(text);
                     
                     if (backupData.vault && backupData.security?.salt) {
                         const vaultData = typeof backupData.vault === 'string' ? backupData.vault : JSON.stringify(backupData.vault);
+                        
+                        // Salvataggio dati nel localStorage
                         localStorage.setItem('cassaforte_data', vaultData);
                         localStorage.setItem('cassaforte_master_salt', backupData.security.salt);
                         
-                       setIsSetup(false);
+                        setIsSetup(false);
                         setPassword(''); 
                         setConfirmPassword('');
-                        alert('Backup caricato con successo! Clicca OK per riavviare l\'app e sbloccare il tuo caveau.');
-                        window.location.reload();
+                        
+                        alert('Backup caricato con successo! Ora l\'app si riavvierà.');
+                        
+                        // Ritardo di sicurezza per garantire la scrittura su Android
+                        setTimeout(() => {
+                            window.location.href = window.location.href;
+                        }, 500);
                     } else {
                         throw new Error("Formato non valido");
                     }
@@ -107,7 +115,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     setError("Il file di backup è danneggiato o non valido.");
                 }
             } else {
-                 setError("Formato file non supportato. Assicurati che sia un file .mypass valido.");
+                 setError("Formato file non supportato. Assicurati che sia un file di backup valido.");
             }
             
             setLoading(false);
@@ -159,7 +167,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     };
 
     return (
-        // Modifica chiave qui: tolto justify-center e messo min-h-[100dvh] con scorrimento automatico
         <div className="flex flex-col items-center min-h-[100dvh] overflow-y-auto bg-slate-900 p-4 py-8 sm:p-6 relative">
             
             <div className="w-full max-w-sm bg-slate-800 rounded-3xl shadow-[0_0_30px_rgba(6,182,212,0.15)] border border-cyan-900/50 overflow-hidden relative z-10 my-auto shrink-0">
@@ -234,7 +241,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                     {error && (
                         <div className={`p-3 text-xs rounded-xl flex items-center ${error.includes('Backup caricato') ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/50' : 'bg-red-950/50 text-red-400 border border-red-900/50'}`}>
-                             <span className="mr-2 text-lg">{error.includes('Backup caricato') ? '✅' : '⚠️'}</span> {error}
+                             <span className="mr-2 text-lg">⚠️</span> {error}
                         </div>
                     )}
 
@@ -273,20 +280,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     I tuoi dati sono crittografati <br/> e salvati solo su questo dispositivo.
                 </p>
                 
-                <p 
-                    className="text-[10px] text-cyan-500/50 font-bold tracking-widest uppercase cursor-pointer hover:text-red-400"
-                    onClick={() => { 
-                        localStorage.removeItem('cassaforte_data'); 
-                        localStorage.removeItem('cassaforte_master_salt'); 
-                        setIsSetup(true); 
-                        setPassword('');
-                        setConfirmPassword('');
-                        setError('');
-                    }}
-                >
-                    App creata da Giovanni Granata
-                </p>
-
                 {installPrompt && (
                     <button 
                         onClick={handleInstallClick}
