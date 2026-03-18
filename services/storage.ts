@@ -18,7 +18,8 @@ const simpleHash = async (text: string): Promise<string> => {
 };
 
 export const hasMasterPassword = (): boolean => {
-    return !!localStorage.getItem(MASTER_HASH_KEY);
+    // MODIFICA CRUCIALE: Se esiste il SALT, allora la cassaforte è inizializzata (anche da backup)
+    return !!localStorage.getItem(MASTER_SALT_KEY);
 };
 
 export const setMasterPassword = async (password: string): Promise<void> => {
@@ -32,19 +33,49 @@ export const setMasterPassword = async (password: string): Promise<void> => {
 };
 
 export const verifyMasterPassword = async (password: string): Promise<boolean> => {
+    const saltBase64 = localStorage.getItem(MASTER_SALT_KEY);
+    if (!saltBase64) return false;
+
+    const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
+    const potentialKey = await deriveKey(password, salt);
+
     const storedHash = localStorage.getItem(MASTER_HASH_KEY);
-    if (!storedHash) return false;
     
-    const inputHash = await simpleHash(password);
-    if (storedHash === inputHash) {
-        const saltBase64 = localStorage.getItem(MASTER_SALT_KEY);
-        if (saltBase64) {
-            const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
-            sessionKey = await deriveKey(password, salt);
+    // Se abbiamo l'hash, facciamo il controllo veloce
+    if (storedHash) {
+        const inputHash = await simpleHash(password);
+        if (storedHash === inputHash) {
+            sessionKey = potentialKey;
+            return true;
         }
+        return false;
+    } 
+    
+    // Se NON abbiamo l'hash (capita dopo un ripristino da backup), proviamo a decriptare i dati
+    // Se la decriptazione riesce, la password è corretta e ricreiamo l'hash
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) {
+        // Se non ci sono dati, accettiamo la password e creiamo l'hash per il futuro
+        const hash = await simpleHash(password);
+        localStorage.setItem(MASTER_HASH_KEY, hash);
+        sessionKey = potentialKey;
         return true;
     }
-    return false;
+
+    try {
+        const parsed = JSON.parse(data);
+        if (parsed.encryptedData && parsed.iv) {
+            await decryptData(parsed.encryptedData, parsed.iv, potentialKey);
+            // Se non esplode qui sopra, la password è giusta!
+            const hash = await simpleHash(password);
+            localStorage.setItem(MASTER_HASH_KEY, hash);
+            sessionKey = potentialKey;
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return false; // Password errata
+    }
 };
 
 // --- Funzioni Dati (Ora Asincrone e Criptate) ---
@@ -57,13 +88,11 @@ export const getPasswords = async (): Promise<PasswordEntry[]> => {
         const parsed = JSON.parse(data);
         if (!sessionKey) throw new Error("Chiave di sessione mancante. Effettua il login.");
         
-        // Se i dati hanno il formato criptato, li decriptiamo
         if (parsed.encryptedData && parsed.iv) {
             const decryptedStr = await decryptData(parsed.encryptedData, parsed.iv, sessionKey);
             return JSON.parse(decryptedStr);
         }
         
-        // Fallback per vecchi dati in chiaro (opzionale, utile per la migrazione)
         return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
         console.error("Impossibile leggere i dati:", e);
@@ -123,7 +152,7 @@ export const deleteByCategory = async (category: string): Promise<void> => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ encryptedData, iv }));
 };
 
-// --- Gestione Categorie (Rimane Sincrona) ---
+// --- Gestione Categorie ---
 
 export const getHiddenCategories = (): string[] => {
     const data = localStorage.getItem(HIDDEN_CATS_KEY);
