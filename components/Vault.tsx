@@ -185,34 +185,82 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
             }
         });
     };
+    const handleResetRequest = () => {
+        setDialogConfig({
+            isOpen: true,
+            title: "Reset Applicazione",
+            message: (
+                <div className="text-left">
+                    <p className="mb-3 text-red-600 font-bold">ATTENZIONE: Questa azione eliminerà permanentemente tutte le password salvate.</p>
+                    <p className="text-sm mb-2 text-slate-600 font-medium">Inserisci la tua Master Password per confermare:</p>
+                    <input 
+                        type="password" 
+                        id="reset-confirm-pass"
+                        className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none text-slate-800"
+                        placeholder="Master Password"
+                    />
+                </div>
+            ),
+            type: 'danger',
+            confirmLabel: "ELIMINA TUTTO",
+            onCancel: closeDialog,
+            onConfirm: async () => {
+                const passInput = document.getElementById('reset-confirm-pass') as HTMLInputElement;
+                const password = passInput?.value;
+                
+                if (!password) {
+                   alert("Inserisci la password per confermare.");
+                   return;
+                }
+                const { verifyMasterPassword } = await import('../services/storage');
+                const isValid = await verifyMasterPassword(password);
+                
+                if (isValid) {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.reload();
+                } else {
+                    alert("Password errata. Reset annullato.");
+                }
+            }
+        });
+    };
 
     const performExport = () => {
-        const encryptedData = localStorage.getItem('cassaforte_data');
-        const salt = localStorage.getItem('cassaforte_master_salt');
+    const encryptedData = localStorage.getItem('cassaforte_data');
+    const salt = localStorage.getItem('cassaforte_master_salt');
 
-        if (!encryptedData || !salt) {
-            alert("Errore: Impossibile recuperare i dati criptati per l'esportazione.");
-            return;
-        }
+    if (!encryptedData || !salt) {
+        alert("Errore: Impossibile recuperare i dati criptati per l'esportazione.");
+        return;
+    }
 
-        const backupPayload = JSON.stringify({
-            version: "1.0",
-            timestamp: Date.now(),
-            vault: JSON.parse(encryptedData),
-            security: { salt }
-        });
-        
-        const blob = new Blob([backupPayload], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const date = new Date().toISOString().split('T')[0];
-        
-        link.href = url;
-        link.setAttribute('download', `mypass_backup_sicuro_${date}.mypass`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+    // Evita il crash se encryptedData è una semplice stringa cifrata
+    let vaultContent;
+    try {
+        vaultContent = JSON.parse(encryptedData);
+    } catch (e) {
+        vaultContent = encryptedData;
+    }
+
+    const backupPayload = JSON.stringify({
+        version: "1.0",
+        timestamp: Date.now(),
+        vault: vaultContent,
+        security: { salt }
+    });
+    
+    const blob = new Blob([backupPayload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    
+    link.href = url;
+    link.setAttribute('download', `mypass_backup_sicuro_${date}.mypass`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
     const detectCategory = (text: string): string => {
         const lower = text.toLowerCase();
@@ -384,7 +432,8 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                     const backupData = JSON.parse(text);
                     
                     if (backupData.vault && backupData.security?.salt) {
-                        localStorage.setItem('cassaforte_data', JSON.stringify(backupData.vault));
+                        const vaultData = typeof backupData.vault === 'string' ? backupData.vault : JSON.stringify(backupData.vault);
+                        localStorage.setItem('cassaforte_data', vaultData);
                         localStorage.setItem('cassaforte_master_salt', backupData.security.salt);
                         
                         setDialogConfig({
@@ -657,6 +706,18 @@ export const Vault: React.FC<VaultProps> = ({ onEdit, onAddNew }) => {
                                                 <FileUp size={20} className="mr-3 text-emerald-500" />
                                                 <span className="font-medium text-sm">Esporta Backup</span>
                                             </button>
+                                            <div className="w-full h-px bg-slate-100 my-1"></div>
+                                            
+                                            <button 
+                                                onClick={() => {
+                                                    setIsMenuOpen(false);
+                                                    handleResetRequest();
+                                                }}
+                                                className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 transition-colors text-left"
+                                            >
+                                                <Trash2 size={20} className="mr-3 text-red-500" />
+                                                <span className="font-medium text-sm font-bold">Reset Totale</span>
+                                            </button>
                                         </div>
                                     </>
                                 )}
@@ -811,13 +872,8 @@ group-hover:bg-slate-200 transition-all duration-300 transform group-hover:scale
                                         ))}
                                     </div>
                                 </div>
-                            )}
-                            
-                            <div className="mt-8 text-center">
-                                <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase opacity-70">
-                                    App creata da Giovanni Granata
-                                </p>
-                            </div>
+                            )}                           
+                           
 
                             <style>{`
                                 @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
