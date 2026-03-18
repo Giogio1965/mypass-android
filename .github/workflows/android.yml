@@ -31,6 +31,7 @@ jobs:
 
       - name: Build APK
         run: |
+          npx -y @capacitor/assets generate --android
           npx cap sync android
           cd android
           chmod +x gradlew
