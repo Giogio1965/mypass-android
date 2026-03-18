@@ -94,20 +94,26 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     if (backupData.vault && backupData.security?.salt) {
                         const vaultData = typeof backupData.vault === 'string' ? backupData.vault : JSON.stringify(backupData.vault);
                         
-                        // Scriviamo i dati in modo forzato
+                        // Salvataggio dati nel localStorage
                         localStorage.setItem('cassaforte_data', vaultData);
                         localStorage.setItem('cassaforte_master_salt', backupData.security.salt);
                         
-                        // Messaggio di conferma che blocca l'esecuzione e dà tempo al sistema
-                        alert('Dati importati con successo! Clicca OK per sbloccare il caveau.');
+                        setIsSetup(false);
+                        setPassword(''); 
+                        setConfirmPassword('');
                         
-                        // Ricarichiamo la pagina in modo pulito dopo un piccolo ritardo
+                        alert('Backup caricato con successo! Ora l\'app si riavvierà.');
+                        
+                        // Ritardo di sicurezza per garantire la scrittura su Android
                         setTimeout(() => {
                             window.location.href = window.location.origin + window.location.pathname;
                         }, 500);
                         
-                        return; // Usciamo dalla funzione per evitare altri conflitti
+                        return; 
+                    } else {
+                        throw new Error("Formato non valido");
                     }
+                } catch (err) {
                     setError("Il file di backup è danneggiato o non valido.");
                 }
             } else {
@@ -125,6 +131,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         reader.readAsText(file);
     };
+Cosa ho sistemato:
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
