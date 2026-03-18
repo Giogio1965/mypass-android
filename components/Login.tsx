@@ -94,24 +94,20 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     if (backupData.vault && backupData.security?.salt) {
                         const vaultData = typeof backupData.vault === 'string' ? backupData.vault : JSON.stringify(backupData.vault);
                         
-                        // Salvataggio dati nel localStorage
+                        // Scriviamo i dati in modo forzato
                         localStorage.setItem('cassaforte_data', vaultData);
                         localStorage.setItem('cassaforte_master_salt', backupData.security.salt);
                         
-                        setIsSetup(false);
-                        setPassword(''); 
-                        setConfirmPassword('');
+                        // Messaggio di conferma che blocca l'esecuzione e dà tempo al sistema
+                        alert('Dati importati con successo! Clicca OK per sbloccare il caveau.');
                         
-                        alert('Backup caricato con successo! Ora l\'app si riavvierà.');
-                        
-                        // Ritardo di sicurezza per garantire la scrittura su Android
+                        // Ricarichiamo la pagina in modo pulito dopo un piccolo ritardo
                         setTimeout(() => {
-                            window.location.href = window.location.href;
+                            window.location.href = window.location.origin + window.location.pathname;
                         }, 500);
-                    } else {
-                        throw new Error("Formato non valido");
+                        
+                        return; // Usciamo dalla funzione per evitare altri conflitti
                     }
-                } catch (err) {
                     setError("Il file di backup è danneggiato o non valido.");
                 }
             } else {
